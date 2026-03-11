@@ -4,7 +4,7 @@
 
 ### set udev rules
 
-[Download script](https://raw.githubusercontent.com/ArduCAM/ArduCam_UVC_Stereo_Demo/refs/heads/master/configure_udev_rules.sh)
+[Download script](../configure_udev_rules.sh)
 
 execute script
 
