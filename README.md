@@ -13,7 +13,7 @@ For detailed API reference and usage instructions, please refer to the [Arducam 
 Please refer to the [Linux installation](doc/linux_environmental_install.md).
 
 ## Quick Start
-To run the demo in the fastest and simplest way, it is recommended to use the [Python demo](../python/README.md) (please set [udev rules](### set udev rules) and [Python dependencies](../python/README.md##installation-dependence) before trying it).
+To run the demo in the fastest and simplest way, it is recommended to use the [Python demo](../python/README.md) (please set [udev rules](../doc/linux_environmental_install.md###set-udev-rules) and [Python dependencies](../python/README.md###installation-dependence) before trying it).
 
 
 
