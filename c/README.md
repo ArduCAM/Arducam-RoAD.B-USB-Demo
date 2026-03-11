@@ -14,6 +14,7 @@ sudo apt install arducam-uvc-stereo-sdk
 ## Build
 
 ```bash
+cd c
 ./build.sh
 ```
 

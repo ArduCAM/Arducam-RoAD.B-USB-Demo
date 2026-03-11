@@ -4,7 +4,7 @@
 
 ### set udev rules
 
-[Download script](../configure_udev_rules.sh)
+[Download script](../res/configure_udev_rules.sh)
 
 execute script
 

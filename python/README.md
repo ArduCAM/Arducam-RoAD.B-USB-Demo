@@ -3,7 +3,8 @@
 ## Installation dependence
 
 ```bash
-python -m pip install arducam-uvc-stereo-sdk
+cd python
+python -m pip install -r requirements.txt
 ```
 
 ## Demo
