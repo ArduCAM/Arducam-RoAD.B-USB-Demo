@@ -1,30 +1,9 @@
 #!/usr/bin/env python3
-import argparse
 import json
 import sys
 
 import cv2
 import numpy as np
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Arducam UVC Stereo live rectification demo")
-    parser.add_argument(
-        "--device-index",
-        type=int,
-        default=None,
-        help="Index in UVCStereo.scan() result. Default: prompt in CLI when multiple devices are detected",
-    )
-    parser.add_argument(
-        "--video-node",
-        type=str,
-        default=None,
-        help="Optional video source override, e.g. /dev/video0",
-    )
-    return parser.parse_args()
-
-
 def format_device(dev):
     parts = []
     vid = getattr(dev, "vid", None)
@@ -422,35 +401,20 @@ def preview_loop(cap, maps, img_size):
 
 
 def main():
-    args = parse_args()
     cap = None
 
     try:
         from arducam_uvc_stereo_sdk import UVCStereo
 
         sdk = UVCStereo()
-        dev = select_device(
-            sdk,
-            device_index=args.device_index,
-            require_capture_source=args.video_node is None,
-        )
+        dev = select_device(sdk, require_capture_source=True)
         calibration = read_device_calibration(sdk, dev)
         params = extract_stereo_params(calibration)
         maps = compute_maps(params)
-
-        if args.video_node:
-            candidates = [{
-                "kind": "video_node",
-                "backend_name": "CAP_V4L2" if getattr(cv2, "CAP_V4L2", None) is not None else None,
-                "backend_id": int(cv2.CAP_V4L2) if getattr(cv2, "CAP_V4L2", None) is not None else None,
-                "source": args.video_node,
-                "label": f"video_node:{args.video_node}",
-            }]
-        else:
-            candidates = get_capture_candidates(dev)
+        candidates = get_capture_candidates(dev)
 
         if not candidates:
-            raise RuntimeError("selected device does not expose a usable capture source, use --video-node")
+            raise RuntimeError("selected device does not expose a usable capture source")
 
         print("available capture sources: " + ", ".join(candidate["label"] for candidate in candidates))
         cap = open_camera(candidates, *params["img_size"])

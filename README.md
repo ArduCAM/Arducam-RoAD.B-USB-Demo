@@ -1,4 +1,4 @@
-# Arducam UVC Stereo Demo
+# Arducam RoAD.B-USB Demo
 
 Demo code for reading and writing calibration data on Arducam UVC stereo cameras, available in C, C++, and Python.
 
