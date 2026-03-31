@@ -12,9 +12,8 @@ if not devices:
 for i, dev in enumerate(devices):
     print(
         f"device[{i}]: vid=0x{dev.vid:04x} pid=0x{dev.pid:04x} "
-        f"node={dev.video_node} bus={dev.bus_number} address={dev.device_address}"
+        f"node={dev.video_node} bus={dev.bus_number} address={dev.device_address}, opencv={dev.opencv}"
     )
-
 # Select the first device
 dev = devices[0]
 

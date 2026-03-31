@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <iostream>
 
+void print_opencv_backends(const arducam::uvc_stereo::DeviceInfo &device);
+
 int main()
 {
     using namespace arducam::uvc_stereo;
@@ -26,7 +28,9 @@ int main()
                   << std::setfill('0') << devices[i].vid << " pid=0x" << std::setw(4)
                   << devices[i].pid << std::dec << " node=" << devices[i].video_node
                   << " bus=" << (unsigned)devices[i].bus_number
-                  << " address=" << (unsigned)devices[i].device_address << "\n";
+                  << " address=" << (unsigned)devices[i].device_address;
+        print_opencv_backends(devices[i]);
+        std::cout << "\n";
     }
 
     /* Select the first device */
@@ -43,3 +47,21 @@ int main()
     std::cout << "json=" << r.value().json_utf8 << "\n";
     return 0;
 }
+
+
+void print_opencv_backends(const arducam::uvc_stereo::DeviceInfo &device)
+{
+    std::cout << " opencv=[";
+    bool first = true;
+    for (const auto &entry : device.opencv_backend_indices) {
+        if (!first) {
+            std::cout << ", ";
+        }
+        std::cout << "{\""
+                  << arducam::uvc_stereo::opencv_backend_name(entry.first)
+                  << "\": " << entry.second << "}";
+        first = false;
+    }
+    std::cout << "]";
+}
+

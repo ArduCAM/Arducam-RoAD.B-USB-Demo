@@ -37,6 +37,8 @@ The project contains multiple demos, please try them according to the correspond
 │   ├── write_calib_data.cpp    # Write calibration data to device
 │   └── README.md
 ├── python/                     # Python Demo
+│   ├── calib.py                # Capture stereo calibration data and write calibration result to device
+│   ├── rectify_demo.py         # Live rectified stereo preview using calibration data from device
 │   ├── requirements.txt        # Python dependencies
 │   ├── read_calib_data.py      # Read calibration data from device
 │   ├── write_calib_data.py     # Write calibration data to device

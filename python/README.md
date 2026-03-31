@@ -43,3 +43,28 @@ write_json success
 read version=0
 read json={...}
 ```
+
+### calibrate.py
+
+Stereo calibration tool for Arducam UVC Stereo cameras.
+
+This script is used to capture stereo calibration image pairs, run ChArUco-based stereo calibration, save the calibration result and write the generated calibration data to stereo camera.
+
+![calibrate](../img/calibrate.png)
+
+```bash
+python calib.py
+
+```
+### rectify_demo.py
+
+Simple rectification demo for Arducam UVC Stereo cameras.
+
+This script reads the calibration data stored in the camera flash, opens the stereo video stream, and displays a real-time rectified preview using the on-device calibration result.
+
+![rectify](../img/rectify.png)
+
+
+```bash
+python rectify_demo.py
+```
