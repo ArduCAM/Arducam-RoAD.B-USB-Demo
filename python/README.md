@@ -44,7 +44,7 @@ read version=0
 read json={...}
 ```
 
-### calibrate.py
+### calibration/calib.py
 
 Stereo calibration tool for Arducam UVC Stereo cameras.
 
@@ -53,10 +53,10 @@ This script is used to capture stereo calibration image pairs, run ChArUco-based
 ![calibrate](../img/calibrate.png)
 
 ```bash
-python calib.py
+python calibration/calib.py
 
 ```
-### rectify_demo.py
+### undistort/rectify.py
 
 Simple rectification demo for Arducam UVC Stereo cameras.
 
@@ -66,5 +66,20 @@ This script reads the calibration data stored in the camera flash, opens the ste
 
 
 ```bash
-python rectify_demo.py
+python undistort/rectify.py
+```
+
+### stereo_match
+
+A real-time stereo disparity and object ranging tool for Arducam UVC Stereo cameras.
+
+This demo reads the calibration data stored in the camera flash, opens the stereo video stream, performs rectification and stereo matching, and displays the left view, right view, or disparity map in a GUI.
+
+It also provides interactive controls for disparity parameters, post-filtering, confidence thresholding, and hole filling, making it
+convenient to tune and preview stereo matching results in real time.
+In addition, it supports YOLO object detection with ultralytics, allowing detected objects to be highlighted live in the preview and their
+estimated X / Y / Z coordinates to be computed from the current disparity result.
+
+```bash
+python stereo_match/demo.py
 ```

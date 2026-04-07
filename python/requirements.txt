@@ -1,2 +1,4 @@
 arducam-uvc-stereo-sdk
 opencv-contrib-python == 4.13.0.92
+PyQt6 == 6.9
+ultralytics
