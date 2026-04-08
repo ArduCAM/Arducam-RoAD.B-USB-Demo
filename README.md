@@ -9,9 +9,6 @@ For detailed API reference and usage instructions, please refer to the [Arducam 
 
 ## Installation dependence
 
-> **Note**
-> Currently, only the Linux version is supported. Windows support will be added in a future release.
-
 ### Linux
 Please refer to the [Linux installation](doc/linux_environmental_install.md).
 
