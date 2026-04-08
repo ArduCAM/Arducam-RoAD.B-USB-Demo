@@ -79,7 +79,3 @@ It also provides interactive controls for disparity parameters, post-filtering, 
 convenient to tune and preview stereo matching results in real time.
 In addition, it supports YOLO object detection with ultralytics, allowing detected objects to be highlighted live in the preview and their
 estimated X / Y / Z coordinates to be computed from the current disparity result.
-
-```bash
-python stereo_match/demo.py
-```

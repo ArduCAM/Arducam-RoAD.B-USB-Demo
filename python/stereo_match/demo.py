@@ -12,6 +12,12 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+# Preload the native SDK before PyQt6 updates PATH/Qt DLL search state.
+try:
+    import arducam_uvc_stereo_sdk as _arducam_sdk_preload  # noqa: F401
+except ImportError:
+    _arducam_sdk_preload = None
+
 try:
     from PyQt6.QtCore import QObject, Qt, QThread, QTimer, pyqtSignal, pyqtSlot
     from PyQt6.QtGui import QImage, QPixmap
@@ -49,7 +55,6 @@ if str(PYTHON_DIR) not in sys.path:
 from stereo_match.core import (
     DEFAULT_SETTINGS,
     crop_to_roi,
-    has_wls_support,
     make_args,
     prepare_runtime,
     process_disparity_frame,
@@ -1015,7 +1020,6 @@ class DisparityMainWindow(QMainWindow):
         self.worker = None
         self.worker_thread = None
         self._updating_controls = False
-        self._wls_supported = has_wls_support()
         self._shutdown_requested = False
 
         self.preview = ImageView()
@@ -1114,10 +1118,7 @@ class DisparityMainWindow(QMainWindow):
         post_filter_combo.addItem("Bilateral", "bilateral")
         post_filter_combo.addItem("Median", "median")
         post_filter_combo.addItem("Gaussian", "gaussian")
-        if self._wls_supported:
-            post_filter_combo.addItem("WLS", "wls")
-        else:
-            post_filter_combo.addItem("WLS (requires ximgproc)", "wls")
+        post_filter_combo.addItem("WLS", "wls")
         self.controls["post_filter_mode"] = post_filter_combo
 
         self.controls["smooth_diameter"] = self._make_spin(0, 31, 1)

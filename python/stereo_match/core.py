@@ -87,8 +87,6 @@ def validate_args(args):
         raise ValueError("--wls-sigma-color must be >= 0")
     if not 0 <= args.confidence_threshold <= 100:
         raise ValueError("--confidence-threshold must be in the range [0, 100]")
-    if args.post_filter_mode == "wls" and not has_wls_support():
-        raise ValueError("WLS filter requires OpenCV ximgproc support")
     if args.hole_fill_radius < 0:
         raise ValueError("--hole-fill-radius must be >= 0")
     if args.hole_fill_eps < 0:
