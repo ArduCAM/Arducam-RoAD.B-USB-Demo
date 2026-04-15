@@ -8,7 +8,6 @@ from utils import split_stereo_frame
 
 DEFAULT_SETTINGS = {
     "display_mode": "disparity",
-    "yolo_enabled": False,
     "downscale": 0.5,
     "min_disparity": 0,
     "num_disparities": 128,
@@ -136,11 +135,7 @@ def right_matcher_min_disparity(args):
 
 
 def needs_right_matcher(args):
-    return (
-        args.post_filter_mode == "wls"
-        or args.confidence_threshold > 0
-        or getattr(args, "yolo_enabled", False)
-    )
+    return args.post_filter_mode == "wls" or args.confidence_threshold > 0
 
 
 def create_right_matcher(args):
@@ -528,7 +523,6 @@ def process_disparity_frame(
     runtime,
     output_rgb=False,
     return_metadata=False,
-    force_disparity=False,
 ):
     map_l1, map_l2, map_r1, map_r2 = maps
     args = runtime["args"]
@@ -548,7 +542,7 @@ def process_disparity_frame(
         "disparity": None,
         "disparity_right": None,
     }
-    need_disparity = force_disparity or display_mode == "disparity"
+    need_disparity = display_mode == "disparity"
 
     if not need_disparity:
         if display_mode == "left":

@@ -1,6 +1,6 @@
 import json
 import sys
-
+import time
 import cv2
 import numpy as np
 
@@ -366,7 +366,7 @@ def open_camera(candidates, width, height):
     for candidate in candidates:
         label = candidate["label"]
         print(f"trying camera source: {label}")
-
+        time.sleep(0.1)
         if candidate["backend_id"] is None:
             cap = cv2.VideoCapture(candidate["source"])
         else:

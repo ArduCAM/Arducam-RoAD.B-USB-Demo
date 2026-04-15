@@ -15,6 +15,9 @@ Please refer to the [Linux installation](doc/linux_environmental_install.md).
 ## Quick Start
 To run the demo in the fastest and simplest way, it is recommended to use the [Python demo](./python/README.md) (please set [udev rules](./doc/linux_environmental_install.md###set-udev-rules) and [Python dependencies](./python/README.md###installation-dependence) before trying it).
 
+## Notes
+- After reading or writing the calibration file, starting the camera stream may fail. Please add a short delay before starting streaming again.
+
 
 
 ## What's next
@@ -41,14 +44,14 @@ The project contains multiple demos, please try them according to the correspond
 │   └── README.md
 ├── advanced/                   # Advanced Demos
 │   ├── stereo_match/           # Stereo Match Demo
-│   │   ├── pyproject.toml      # Project configuration
-│   │   ├── demo.py             # Main demo script
-│   │   ├── README.md           # README for stereo_match
-│   │   ├── ...
-│   └── ...
+│   └── README.md
 └── calib_example.json          # Example calibration data file
 ```
 
+## Basic Demos:
 - [C Demo](c/README.md)
 - [C++ Demo](c++/README.md)
 - [Python Demo](python/README.md)
+
+## Advanced Demos:
+- [Stereo Match Demo](advanced/stereo_match/README.md)

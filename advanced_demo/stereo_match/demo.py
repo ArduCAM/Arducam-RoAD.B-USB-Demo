@@ -3,7 +3,6 @@
 PyQt6 GUI for the Arducam UVC Stereo disparity demo.
 """
 
-import os
 import sys
 import threading
 import signal
@@ -23,7 +22,6 @@ try:
     from PyQt6.QtGui import QImage, QPixmap
     from PyQt6.QtWidgets import (
         QApplication,
-        QCheckBox,
         QComboBox,
         QDoubleSpinBox,
         QFormLayout,
@@ -54,11 +52,9 @@ if str(PYTHON_DIR) not in sys.path:
 
 from stereo_match.core import (
     DEFAULT_SETTINGS,
-    crop_to_roi,
     make_args,
     prepare_runtime,
     process_disparity_frame,
-    right_matcher_min_disparity,
     roi_size,
     validate_args,
 )
@@ -70,19 +66,9 @@ from utils import (
     get_capture_candidates,
     open_camera,
     read_device_calibration,
-    split_stereo_frame,
 )
 
-
-YOLO_MODEL_PATH = Path(__file__).resolve().parent / "model" / "yolo26n.pt"
-YOLO_CONFIG_DIR = Path("/tmp/Ultralytics")
-YOLO_CONFIDENCE = 0.5
-YOLO_IMAGE_SIZE = 640
-YOLO_MAX_DETECTIONS = 100
 NON_RUNTIME_SETTINGS = {"display_mode"}
-DEPTH_UNIT_LABEL = "cm"
-DEPTH_SAMPLE_INSET = 0.2
-DEPTH_MIN_VALID_PIXELS = 9
 
 
 def frame_to_qimage(frame_rgb):
@@ -96,580 +82,6 @@ def frame_to_qimage(frame_rgb):
         bytes_per_line,
         QImage.Format.Format_RGB888,
     ).copy()
-
-
-def clip_box(box, width, height):
-    x1, y1, x2, y2 = (float(value) for value in box)
-    x1 = min(max(x1, 0.0), float(width))
-    y1 = min(max(y1, 0.0), float(height))
-    x2 = min(max(x2, 0.0), float(width))
-    y2 = min(max(y2, 0.0), float(height))
-    if x2 - x1 < 1.0 or y2 - y1 < 1.0:
-        return None
-    return x1, y1, x2, y2
-
-
-def class_color(class_id):
-    return (
-        48 + (class_id * 67) % 192,
-        48 + (class_id * 131) % 192,
-        48 + (class_id * 197) % 192,
-    )
-
-
-def draw_detections(frame_bgr, detections):
-    if not detections:
-        return frame_bgr
-
-    annotated = frame_bgr.copy()
-    height, width = annotated.shape[:2]
-    font = cv2.FONT_HERSHEY_SIMPLEX
-
-    for detection in detections:
-        clipped = clip_box(detection["box"], width, height)
-        if clipped is None:
-            continue
-
-        x1 = min(max(int(np.floor(clipped[0])), 0), max(width - 2, 0))
-        y1 = min(max(int(np.floor(clipped[1])), 0), max(height - 2, 0))
-        x2 = min(max(int(np.ceil(clipped[2])), x1 + 1), width - 1)
-        y2 = min(max(int(np.ceil(clipped[3])), y1 + 1), height - 1)
-
-        color = detection["color"]
-        lines = detection.get("text_lines")
-        if not lines:
-            lines = [f"{detection['label']} {detection['confidence']:.2f}"]
-
-        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
-
-        metrics = [cv2.getTextSize(line, font, 0.55, 1) for line in lines]
-        text_width = max(size[0] for size, _baseline in metrics)
-        line_height = max(size[1] + baseline for size, baseline in metrics)
-        text_block_height = line_height * len(lines) + 6
-        label_top = y1 - text_block_height - 6
-        if label_top < 0:
-            label_top = min(y1 + 2, max(height - text_block_height - 2, 0))
-        label_bottom = min(height - 1, label_top + text_block_height)
-        label_right = min(width - 1, x1 + text_width + 8)
-
-        cv2.rectangle(
-            annotated,
-            (x1, label_top),
-            (label_right, label_bottom),
-            color,
-            -1,
-            cv2.LINE_AA,
-        )
-
-        text_y = label_top + 2
-        for line, (size, baseline) in zip(lines, metrics):
-            text_y += size[1] + baseline
-            cv2.putText(
-                annotated,
-                line,
-                (x1 + 4, text_y - baseline),
-                font,
-                0.55,
-                (255, 255, 255),
-                1,
-                cv2.LINE_AA,
-            )
-            text_y += 2
-
-    return annotated
-
-
-def build_disparity_detection_source(frame, img_size, maps, runtime):
-    map_l1, map_l2, _map_r1, _map_r2 = maps
-    process_size = runtime["process_size"]
-    overlap_roi_proc = runtime["display_config"]["overlap_roi_proc"]
-
-    left, _right = split_stereo_frame(frame, img_size)
-    left_rect = cv2.remap(left, map_l1, map_l2, cv2.INTER_LINEAR)
-    if process_size != img_size:
-        left_rect = cv2.resize(left_rect, process_size, interpolation=cv2.INTER_AREA)
-    return crop_to_roi(left_rect, overlap_roi_proc)
-
-
-def project_detections_to_disparity(detections, disparity_roi_proc, output_size):
-    roi_x, roi_y, roi_width, roi_height = disparity_roi_proc
-    output_width, output_height = output_size
-    if roi_width <= 0 or roi_height <= 0 or output_width <= 0 or output_height <= 0:
-        return []
-
-    scale_x = output_width / float(roi_width)
-    scale_y = output_height / float(roi_height)
-
-    projected = []
-    for detection in detections:
-        box = detection["box"]
-        mapped_box = (
-            (box[0] - roi_x) * scale_x,
-            (box[1] - roi_y) * scale_y,
-            (box[2] - roi_x) * scale_x,
-            (box[3] - roi_y) * scale_y,
-        )
-        clipped = clip_box(mapped_box, output_width, output_height)
-        if clipped is None:
-            continue
-
-        projected.append(
-            {
-                **detection,
-                "box": clipped,
-            }
-        )
-
-    return projected
-
-
-def resolve_class_name(names, class_id):
-    if isinstance(names, dict):
-        return str(names.get(class_id, class_id))
-    if 0 <= class_id < len(names):
-        return str(names[class_id])
-    return str(class_id)
-
-
-def box_center(box):
-    return ((box[0] + box[2]) * 0.5, (box[1] + box[3]) * 0.5)
-
-
-def scale_points(points, src_size, dst_size):
-    src_width, src_height = src_size
-    dst_width, dst_height = dst_size
-    scaled = np.asarray(points, dtype=np.float32).copy()
-    scaled[:, 0] *= dst_width / float(src_width)
-    scaled[:, 1] *= dst_height / float(src_height)
-    return scaled
-
-
-def points_to_box(points):
-    xs = points[:, 0]
-    ys = points[:, 1]
-    return float(xs.min()), float(ys.min()), float(xs.max()), float(ys.max())
-
-
-def shrink_box(box, inset_ratio):
-    x1, y1, x2, y2 = box
-    width = max(0.0, x2 - x1)
-    height = max(0.0, y2 - y1)
-    inset_x = min(width * inset_ratio, width * 0.45)
-    inset_y = min(height * inset_ratio, height * 0.45)
-    shrunk = (x1 + inset_x, y1 + inset_y, x2 - inset_x, y2 - inset_y)
-    if shrunk[2] - shrunk[0] < 1.0 or shrunk[3] - shrunk[1] < 1.0:
-        return box
-    return shrunk
-
-
-def crop_box_to_roi_space(box, roi):
-    roi_x, roi_y, roi_width, roi_height = roi
-    return clip_box(
-        (
-            box[0] - roi_x,
-            box[1] - roi_y,
-            box[2] - roi_x,
-            box[3] - roi_y,
-        ),
-        roi_width,
-        roi_height,
-    )
-
-
-def rectify_points(points, camera_name, params, rectification):
-    if camera_name == "left":
-        camera_matrix = params["K_l"]
-        dist_coeffs = params["D_l"]
-        rectify_rotation = rectification["R1"]
-        projection = rectification["P1"]
-    elif camera_name == "right":
-        camera_matrix = params["K_r"]
-        dist_coeffs = params["D_r"]
-        rectify_rotation = rectification["R2"]
-        projection = rectification["P2"]
-    else:
-        raise ValueError(f"unsupported camera name: {camera_name}")
-
-    raw_points = np.asarray(points, dtype=np.float32).reshape(-1, 1, 2)
-    rectified = cv2.undistortPoints(
-        raw_points,
-        camera_matrix,
-        dist_coeffs,
-        R=rectify_rotation,
-        P=projection,
-    )
-    return rectified.reshape(-1, 2)
-
-
-def raw_box_to_depth_geometry(
-    box,
-    camera_name,
-    params,
-    rectification,
-    process_size,
-    overlap_roi_proc,
-):
-    img_size = params["img_size"]
-    corners = np.asarray(
-        [
-            [box[0], box[1]],
-            [box[2], box[1]],
-            [box[2], box[3]],
-            [box[0], box[3]],
-        ],
-        dtype=np.float32,
-    )
-    rectified_corners = rectify_points(corners, camera_name, params, rectification)
-    process_corners = scale_points(rectified_corners, img_size, process_size)
-    depth_box = crop_box_to_roi_space(points_to_box(process_corners), overlap_roi_proc)
-    if depth_box is None:
-        return None
-
-    center = np.asarray([box_center(box)], dtype=np.float32)
-    rectified_center = rectify_points(center, camera_name, params, rectification)
-    process_center = scale_points(rectified_center, img_size, process_size)[0]
-    return {
-        "depth_box": depth_box,
-        "center_proc": (float(process_center[0]), float(process_center[1])),
-    }
-
-
-def sample_valid_disparity(disparity_map, box, valid_fn, value_fn):
-    if disparity_map is None:
-        return None
-
-    height, width = disparity_map.shape[:2]
-    for candidate_box in (shrink_box(box, DEPTH_SAMPLE_INSET), box):
-        clipped = clip_box(candidate_box, width, height)
-        if clipped is None:
-            continue
-
-        x1 = int(np.floor(clipped[0]))
-        y1 = int(np.floor(clipped[1]))
-        x2 = int(np.ceil(clipped[2]))
-        y2 = int(np.ceil(clipped[3]))
-        region = disparity_map[y1:y2, x1:x2]
-        if region.size == 0:
-            continue
-
-        valid_values = region[valid_fn(region)]
-        if valid_values.size >= DEPTH_MIN_VALID_PIXELS or (
-            candidate_box == box and valid_values.size > 0
-        ):
-            transformed = value_fn(valid_values)
-            if transformed.size == 0:
-                continue
-            return float(np.median(transformed))
-
-    return None
-
-
-def process_intrinsics(rectification, img_size, process_size):
-    scale_x = process_size[0] / float(img_size[0])
-    scale_y = process_size[1] / float(img_size[1])
-    projection_left = rectification["P1"]
-    projection_right = rectification["P2"]
-    baseline = abs(float(projection_right[0, 3]) / float(projection_right[0, 0]))
-    return {
-        "fx": float(projection_left[0, 0]) * scale_x,
-        "fy": float(projection_left[1, 1]) * scale_y,
-        "cx": float(projection_left[0, 2]) * scale_x,
-        "cy": float(projection_left[1, 2]) * scale_y,
-        "baseline": baseline,
-    }
-
-
-def compute_detection_xyz(detection, frame_data, params, rectification, runtime):
-    disparity_map = frame_data["disparity"]
-    if disparity_map is None:
-        return None
-
-    args = runtime["args"]
-    process_size = frame_data["process_size"]
-    overlap_roi_proc = runtime["display_config"]["overlap_roi_proc"]
-    intrinsics = process_intrinsics(rectification, params["img_size"], process_size)
-    if intrinsics["fx"] <= 0.0 or intrinsics["fy"] <= 0.0 or intrinsics["baseline"] <= 0.0:
-        return None
-
-    depth_space = detection.get("depth_space")
-    if depth_space == "left_proc":
-        depth_box = detection.get("depth_box")
-        if depth_box is None:
-            return None
-        disparity_value = sample_valid_disparity(
-            disparity_map,
-            depth_box,
-            lambda region: region > (args.min_disparity - 1.0),
-            lambda values: values,
-        )
-        if disparity_value is None or disparity_value <= 0.0:
-            return None
-        center_crop = box_center(depth_box)
-        center_proc = (
-            overlap_roi_proc[0] + center_crop[0],
-            overlap_roi_proc[1] + center_crop[1],
-        )
-        x_left_proc = center_proc[0]
-        y_proc = center_proc[1]
-    elif depth_space == "left_raw":
-        geometry = raw_box_to_depth_geometry(
-            detection["depth_box"],
-            "left",
-            params,
-            rectification,
-            process_size,
-            overlap_roi_proc,
-        )
-        if geometry is None:
-            return None
-        disparity_value = sample_valid_disparity(
-            disparity_map,
-            geometry["depth_box"],
-            lambda region: region > (args.min_disparity - 1.0),
-            lambda values: values,
-        )
-        if disparity_value is None or disparity_value <= 0.0:
-            return None
-        x_left_proc = geometry["center_proc"][0]
-        y_proc = geometry["center_proc"][1]
-    elif depth_space == "right_raw":
-        disparity_right = frame_data["disparity_right"]
-        if disparity_right is None:
-            return None
-        geometry = raw_box_to_depth_geometry(
-            detection["depth_box"],
-            "right",
-            params,
-            rectification,
-            process_size,
-            overlap_roi_proc,
-        )
-        if geometry is None:
-            return None
-        disparity_value = sample_valid_disparity(
-            disparity_right,
-            geometry["depth_box"],
-            lambda region: region > (right_matcher_min_disparity(args) - 1.0),
-            lambda values: -values,
-        )
-        if disparity_value is None or disparity_value <= 0.0:
-            return None
-        x_left_proc = geometry["center_proc"][0] + disparity_value
-        y_proc = geometry["center_proc"][1]
-    else:
-        return None
-
-    z_value = intrinsics["fx"] * intrinsics["baseline"] / disparity_value
-    x_value = (x_left_proc - intrinsics["cx"]) * z_value / intrinsics["fx"]
-    y_value = (y_proc - intrinsics["cy"]) * z_value / intrinsics["fy"]
-    return x_value, y_value, z_value
-
-
-def attach_xyz_to_detections(detections, frame_data, params, rectification, runtime):
-    if not detections:
-        return detections
-
-    for detection in detections:
-        xyz = compute_detection_xyz(detection, frame_data, params, rectification, runtime)
-        detection["xyz"] = xyz
-        detection["text_lines"] = [f"{detection['label']} {detection['confidence']:.2f}"]
-        if xyz is None:
-            detection["text_lines"].extend(["X=n/a", "Y=n/a", "Z=n/a"])
-            continue
-
-        x_value, y_value, z_value = xyz
-        detection["text_lines"].extend(
-            [
-                f"X={x_value:.1f}{DEPTH_UNIT_LABEL}",
-                f"Y={y_value:.1f}{DEPTH_UNIT_LABEL}",
-                f"Z={z_value:.1f}{DEPTH_UNIT_LABEL}",
-            ]
-        )
-    return detections
-
-
-class AsyncYoloDetector:
-    def __init__(self, status_callback):
-        self._status_callback = status_callback
-        self._thread = None
-        self._lock = threading.Lock()
-        self._condition = threading.Condition(self._lock)
-        self._stop_requested = False
-        self._pending_request = None
-        self._result_cache = {}
-        self._latest_error = None
-        self._yolo_model = None
-        self._generation = 0
-
-    def start(self):
-        with self._condition:
-            if self._thread is not None:
-                return
-            self._stop_requested = False
-            self._thread = threading.Thread(
-                target=self._thread_main,
-                name="AsyncYoloDetector",
-                daemon=True,
-            )
-            self._thread.start()
-
-    def stop(self):
-        with self._condition:
-            thread = self._thread
-            if thread is None:
-                return
-            self._stop_requested = True
-            self._pending_request = None
-            self._condition.notify_all()
-
-        thread.join(timeout=2.0)
-        with self._condition:
-            if self._thread is thread:
-                self._thread = None
-
-    def clear(self):
-        with self._condition:
-            self._generation += 1
-            self._pending_request = None
-            self._result_cache = {}
-            self._latest_error = None
-
-    def submit(self, request):
-        self.start()
-        with self._condition:
-            request = request.copy()
-            request["generation"] = self._generation
-            self._pending_request = request
-            self._condition.notify()
-
-    def poll_result(self, signature):
-        with self._condition:
-            if self._latest_error is not None:
-                if self._latest_error["generation"] == self._generation:
-                    message = self._latest_error["message"]
-                    self._latest_error = None
-                    raise RuntimeError(message)
-                self._latest_error = None
-
-            return self._result_cache.get(signature)
-
-    def _ensure_model(self):
-        if self._yolo_model is not None:
-            return self._yolo_model
-
-        if not YOLO_MODEL_PATH.is_file():
-            raise RuntimeError(f"YOLO model file not found: {YOLO_MODEL_PATH}")
-
-        self._status_callback(f"Loading YOLO model from {YOLO_MODEL_PATH.name}...")
-        os.environ.setdefault("YOLO_CONFIG_DIR", str(YOLO_CONFIG_DIR))
-        try:
-            from ultralytics import YOLO
-        except ImportError as exc:
-            raise RuntimeError(
-                "ultralytics is not installed. Run: python -m pip install -r python/requirements.txt"
-            ) from exc
-        except Exception as exc:
-            raise RuntimeError(f"failed to import ultralytics: {exc}") from exc
-
-        try:
-            self._yolo_model = YOLO(str(YOLO_MODEL_PATH))
-        except Exception as exc:
-            raise RuntimeError(f"failed to load YOLO model: {exc}") from exc
-
-        self._status_callback("YOLO detection ready")
-        return self._yolo_model
-
-    def _infer_detections(self, frame_bgr):
-        model = self._ensure_model()
-        if frame_bgr.size == 0:
-            return []
-
-        try:
-            results = model.predict(
-                source=frame_bgr,
-                conf=YOLO_CONFIDENCE,
-                imgsz=YOLO_IMAGE_SIZE,
-                max_det=YOLO_MAX_DETECTIONS,
-                verbose=False,
-            )
-        except Exception as exc:
-            raise RuntimeError(f"YOLO inference failed: {exc}") from exc
-
-        if not results:
-            return []
-
-        result = results[0]
-        boxes = getattr(result, "boxes", None)
-        if boxes is None or len(boxes) == 0:
-            return []
-
-        names = getattr(result, "names", getattr(model, "names", {}))
-        detections = []
-        for xyxy, confidence, cls_value in zip(
-            boxes.xyxy.tolist(),
-            boxes.conf.tolist(),
-            boxes.cls.tolist(),
-        ):
-            box = clip_box(xyxy, frame_bgr.shape[1], frame_bgr.shape[0])
-            if box is None:
-                continue
-
-            class_id = int(cls_value)
-            detections.append(
-                {
-                    "box": box,
-                    "label": resolve_class_name(names, class_id),
-                    "confidence": float(confidence),
-                    "color": class_color(class_id),
-                }
-            )
-
-        return detections
-
-    def _process_request(self, request):
-        detections = self._infer_detections(request["source_frame"])
-        for detection in detections:
-            detection["depth_box"] = detection["box"]
-            detection["depth_space"] = request["depth_space"]
-        if request["project_to_disparity"]:
-            detections = project_detections_to_disparity(
-                detections,
-                request["disparity_roi_proc"],
-                request["output_size"],
-            )
-        return {
-            "generation": request["generation"],
-            "signature": request["signature"],
-            "detections": detections,
-        }
-
-    def _thread_main(self):
-        while True:
-            with self._condition:
-                while not self._stop_requested and self._pending_request is None:
-                    self._condition.wait()
-                if self._stop_requested:
-                    return
-                request = self._pending_request
-                self._pending_request = None
-
-            try:
-                result = self._process_request(request)
-            except Exception as exc:
-                with self._condition:
-                    if request["generation"] != self._generation:
-                        continue
-                    self._latest_error = {
-                        "generation": request["generation"],
-                        "message": str(exc),
-                    }
-                    self._result_cache = {}
-                continue
-
-            with self._condition:
-                if result["generation"] != self._generation:
-                    continue
-                self._result_cache[result["signature"]] = result["detections"]
 
 
 def format_device_vid_pid(dev):
@@ -735,8 +147,6 @@ class DisparityWorker(QObject):
         self._stop_requested = False
         self._cap = None
         self._lock = threading.Lock()
-        self._yolo_enabled = bool(settings.get("yolo_enabled", False))
-        self._yolo_detector = None
 
     def update_settings(self, settings):
         with self._lock:
@@ -830,70 +240,6 @@ class DisparityWorker(QObject):
             return "confidence=off"
         return f"confidence>={args.confidence_threshold}"
 
-    def _ensure_yolo_detector(self):
-        if self._yolo_detector is None:
-            self._yolo_detector = AsyncYoloDetector(self.status.emit)
-        return self._yolo_detector
-
-    def _clear_yolo_results(self):
-        if self._yolo_detector is not None:
-            self._yolo_detector.clear()
-
-    def _stop_yolo_detector(self):
-        if self._yolo_detector is not None:
-            self._yolo_detector.stop()
-            self._yolo_detector = None
-
-    def _yolo_signature(self, runtime, display_frame_bgr):
-        display_mode = getattr(runtime["args"], "display_mode", "disparity")
-        output_size = (display_frame_bgr.shape[1], display_frame_bgr.shape[0])
-        if display_mode == "disparity":
-            return (
-                "disparity",
-                output_size,
-                tuple(int(value) for value in runtime["process_size"]),
-                tuple(int(value) for value in runtime["display_config"]["overlap_roi_proc"]),
-                tuple(int(value) for value in runtime["display_config"]["disparity_roi_proc"]),
-            )
-        return (display_mode, output_size)
-
-    def _submit_yolo_request(self, frame, img_size, maps, runtime, display_frame_bgr):
-        detector = self._ensure_yolo_detector()
-        display_mode = getattr(runtime["args"], "display_mode", "disparity")
-        signature = self._yolo_signature(runtime, display_frame_bgr)
-
-        if display_mode in {"left", "right"}:
-            source_frame = display_frame_bgr.copy()
-            project_to_disparity = False
-            disparity_roi_proc = None
-            output_size = None
-            depth_space = "left_raw" if display_mode == "left" else "right_raw"
-        else:
-            source_frame = build_disparity_detection_source(
-                frame,
-                img_size,
-                maps,
-                runtime,
-            ).copy()
-            project_to_disparity = True
-            disparity_roi_proc = tuple(
-                int(value) for value in runtime["display_config"]["disparity_roi_proc"]
-            )
-            output_size = (display_frame_bgr.shape[1], display_frame_bgr.shape[0])
-            depth_space = "left_proc"
-
-        detector.submit(
-            {
-                "signature": signature,
-                "source_frame": source_frame,
-                "project_to_disparity": project_to_disparity,
-                "disparity_roi_proc": disparity_roi_proc,
-                "output_size": output_size,
-                "depth_space": depth_space,
-            }
-        )
-        return detector.poll_result(signature)
-
     def _apply_display_mode(self, runtime, settings):
         runtime["args"].display_mode = settings.get("display_mode", "disparity")
 
@@ -928,14 +274,6 @@ class DisparityWorker(QObject):
             while not self._should_stop():
                 settings = self._get_settings()
                 signature = self._runtime_signature(settings)
-                yolo_enabled = bool(settings.get("yolo_enabled", False))
-
-                if yolo_enabled != self._yolo_enabled:
-                    self.status.emit(
-                        "YOLO detection enabled" if yolo_enabled else "YOLO detection disabled"
-                    )
-                    self._yolo_enabled = yolo_enabled
-                    self._clear_yolo_results()
 
                 if runtime is None or signature != runtime_signature:
                     try:
@@ -946,7 +284,6 @@ class DisparityWorker(QObject):
                             device_index=self.scan_index,
                         )
                         runtime_signature = signature
-                        self._clear_yolo_results()
                         self.status.emit(self._runtime_message(runtime))
                     except Exception as exc:
                         if runtime is None:
@@ -971,26 +308,8 @@ class DisparityWorker(QObject):
                     runtime,
                     output_rgb=False,
                     return_metadata=True,
-                    force_disparity=yolo_enabled,
                 )
                 display_frame = frame_data["display_frame"]
-                if yolo_enabled:
-                    detections = self._submit_yolo_request(
-                        frame,
-                        params["img_size"],
-                        maps,
-                        runtime,
-                        display_frame,
-                    )
-                    if detections is not None:
-                        detections = attach_xyz_to_detections(
-                            detections,
-                            frame_data,
-                            params,
-                            rectification,
-                            runtime,
-                        )
-                        display_frame = draw_detections(display_frame, detections)
 
                 self.frame_ready.emit(cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB))
 
@@ -1002,7 +321,6 @@ class DisparityWorker(QObject):
             else:
                 self.error.emit(str(exc))
         finally:
-            self._stop_yolo_detector()
             if cap is not None:
                 cap.release()
             with self._lock:
@@ -1075,11 +393,9 @@ class DisparityMainWindow(QMainWindow):
         self.view_mode_combo.addItem("Disparity", "disparity")
         self.view_mode_combo.addItem("Left Camera", "left")
         self.view_mode_combo.addItem("Right Camera", "right")
-        self.controls["yolo_enabled"] = QCheckBox("YOLO Detection")
 
         layout.addWidget(QLabel("Mode"))
         layout.addWidget(self.view_mode_combo, stretch=1)
-        layout.addWidget(self.controls["yolo_enabled"])
         return group
 
     def _build_device_group(self):
@@ -1171,8 +487,6 @@ class DisparityMainWindow(QMainWindow):
         for control in self.controls.values():
             if isinstance(control, QComboBox):
                 control.currentIndexChanged.connect(self.on_settings_changed)
-            elif isinstance(control, QCheckBox):
-                control.toggled.connect(self.on_settings_changed)
             elif isinstance(control, QSpinBox):
                 control.valueChanged.connect(self.on_settings_changed)
             elif isinstance(control, QDoubleSpinBox):
@@ -1217,7 +531,6 @@ class DisparityMainWindow(QMainWindow):
     def current_settings(self):
         return {
             "display_mode": self.view_mode_combo.currentData(),
-            "yolo_enabled": self.controls["yolo_enabled"].isChecked(),
             "downscale": self.controls["downscale"].value(),
             "min_disparity": self.controls["min_disparity"].value(),
             "num_disparities": self.controls["num_disparities"].value(),
@@ -1249,7 +562,6 @@ class DisparityMainWindow(QMainWindow):
             index = self.view_mode_combo.findData(merged["display_mode"])
             if index >= 0:
                 self.view_mode_combo.setCurrentIndex(index)
-            self.controls["yolo_enabled"].setChecked(bool(merged.get("yolo_enabled", False)))
             self.controls["downscale"].setValue(merged["downscale"])
             self.controls["min_disparity"].setValue(merged["min_disparity"])
             self.controls["num_disparities"].setValue(merged["num_disparities"])

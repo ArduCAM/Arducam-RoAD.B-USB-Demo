@@ -1,6 +1,6 @@
 import json
 import sys
-
+import time
 import cv2
 import numpy as np
 
@@ -155,7 +155,9 @@ def choose_device_via_cli(entries):
         if choice.lower() in {"q", "quit", "exit"}:
             raise RuntimeError("device selection cancelled")
         if choice not in valid_entries:
-            print(f"[WARN] Invalid device index '{choice}', valid choices: {valid_indices}")
+            print(
+                f"[WARN] Invalid device index '{choice}', valid choices: {valid_indices}"
+            )
             continue
         return valid_entries[choice]
 
@@ -206,7 +208,9 @@ def read_device_calibration(sdk, dev):
     try:
         version, json_text = sdk.read_json(device=dev)
     except Exception as exc:
-        raise RuntimeError(f"failed to read calibration JSON from device: {exc}") from exc
+        raise RuntimeError(
+            f"failed to read calibration JSON from device: {exc}"
+        ) from exc
 
     print(f"calibration version={version}")
 
@@ -273,7 +277,9 @@ def extract_stereo_params(calibration):
         raise RuntimeError("left extrinsics is missing")
 
     try:
-        R = to_matrix(extrinsics["rotationMatrix"], (3, 3), "left extrinsics.rotationMatrix")
+        R = to_matrix(
+            extrinsics["rotationMatrix"], (3, 3), "left extrinsics.rotationMatrix"
+        )
         T = np.asarray(extrinsics["translation"], dtype=np.float64).reshape(3, 1)
     except KeyError as exc:
         raise RuntimeError(f"missing extrinsics field: {exc}") from exc
@@ -281,7 +287,9 @@ def extract_stereo_params(calibration):
         raise RuntimeError(f"invalid left extrinsics.translation: {exc}") from exc
 
     if T.shape != (3, 1):
-        raise RuntimeError(f"left extrinsics.translation must have shape (3, 1), got {T.shape}")
+        raise RuntimeError(
+            f"left extrinsics.translation must have shape (3, 1), got {T.shape}"
+        )
 
     return {
         "img_size": (width_l, height_l),
@@ -366,7 +374,7 @@ def open_camera(candidates, width, height):
     for candidate in candidates:
         label = candidate["label"]
         print(f"trying camera source: {label}")
-
+        time.sleep(0.1)
         if candidate["backend_id"] is None:
             cap = cv2.VideoCapture(candidate["source"])
         else:
