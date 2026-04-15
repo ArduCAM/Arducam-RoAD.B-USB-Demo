@@ -1,4 +1,0 @@
-arducam-uvc-stereo-sdk
-PyQt6 == 6.9
-ultralytics
-

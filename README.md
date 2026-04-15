@@ -39,6 +39,13 @@ The project contains multiple demos, please try them according to the correspond
 │   ├── write_calib_data.py     # Write calibration data to device
 │   ├── ...
 │   └── README.md
+├── advanced/                   # Advanced Demos
+│   ├── stereo_match/           # Stereo Match Demo
+│   │   ├── pyproject.toml      # Project configuration
+│   │   ├── demo.py             # Main demo script
+│   │   ├── README.md           # README for stereo_match
+│   │   ├── ...
+│   └── ...
 └── calib_example.json          # Example calibration data file
 ```
 
