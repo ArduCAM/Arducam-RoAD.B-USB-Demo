@@ -39,6 +39,8 @@ from utils import (
     select_device,
 )
 
+PREVIEW_WINDOW_SIZES = {}
+
 
 def get_default_session_dir():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -97,6 +99,120 @@ def create_charuco_board(squares_x, squares_y, square_size, marker_size):
     aruco_params = cv2.aruco.DetectorParameters()
     aruco_detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
     return board, aruco_dict, aruco_detector
+
+
+def configure_windows_dpi_awareness():
+    """Enable Windows per-monitor DPI awareness before creating UI windows."""
+    if not sys.platform.startswith("win"):
+        return
+
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        pointer_bits = ctypes.sizeof(ctypes.c_void_p) * 8
+        pmv2_context = (-4) & ((1 << pointer_bits) - 1)
+
+        try:
+            user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+            user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
+            if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(pmv2_context)):
+                return
+        except AttributeError:
+            pass
+
+        try:
+            shcore = ctypes.windll.shcore
+            shcore.SetProcessDpiAwareness.argtypes = [ctypes.c_int]
+            shcore.SetProcessDpiAwareness.restype = ctypes.c_long
+            shcore.SetProcessDpiAwareness(2)
+            return
+        except AttributeError:
+            pass
+
+        user32.SetProcessDPIAware()
+    except Exception:
+        # DPI awareness is best-effort. Preview scaling still works as fallback.
+        pass
+
+
+def _get_windows_work_area():
+    """Return primary monitor work area in pixels on Windows."""
+    if not sys.platform.startswith("win"):
+        return None
+
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        rect = wintypes.RECT()
+        spi_get_workarea = 0x0030
+        if ctypes.windll.user32.SystemParametersInfoW(
+                spi_get_workarea, 0, ctypes.byref(rect), 0):
+            width = rect.right - rect.left
+            height = rect.bottom - rect.top
+            if width > 0 and height > 0:
+                return width, height
+
+        width = ctypes.windll.user32.GetSystemMetrics(0)
+        height = ctypes.windll.user32.GetSystemMetrics(1)
+        if width > 0 and height > 0:
+            return width, height
+    except Exception:
+        return None
+
+    return None
+
+
+def get_preview_max_size():
+    """Return a safe preview area that fits typical desktop work areas."""
+    work_area = _get_windows_work_area()
+    if work_area is not None:
+        work_w, work_h = work_area
+        return max(640, work_w - 80), max(480, work_h - 120)
+
+    return 1920, 1080
+
+
+def resize_for_preview(image):
+    """Scale preview image down to fit the available desktop work area."""
+    max_w, max_h = get_preview_max_size()
+    height, width = image.shape[:2]
+    scale = min(1.0, max_w / float(width), max_h / float(height))
+    if scale >= 1.0:
+        return image
+
+    target_size = (
+        max(1, int(round(width * scale))),
+        max(1, int(round(height * scale))),
+    )
+    return cv2.resize(image, target_size, interpolation=cv2.INTER_AREA)
+
+
+def show_preview(window_name, image):
+    """Show preview image in a manually sized window."""
+    display = resize_for_preview(image)
+
+    if window_name not in PREVIEW_WINDOW_SIZES:
+        flags = cv2.WINDOW_NORMAL
+        if hasattr(cv2, "WINDOW_KEEPRATIO"):
+            flags |= cv2.WINDOW_KEEPRATIO
+        cv2.namedWindow(window_name, flags)
+        PREVIEW_WINDOW_SIZES[window_name] = None
+
+    window_size = (display.shape[1], display.shape[0])
+    if PREVIEW_WINDOW_SIZES[window_name] != window_size:
+        cv2.resizeWindow(window_name, *window_size)
+        PREVIEW_WINDOW_SIZES[window_name] = window_size
+
+    cv2.imshow(window_name, display)
+    return display
+
+
+def destroy_preview_windows():
+    """Close preview windows and reset tracked window sizes."""
+    PREVIEW_WINDOW_SIZES.clear()
+    cv2.destroyAllWindows()
 
 
 def _split_raw_frame(frame):
@@ -210,6 +326,7 @@ def capture_images(cap, board, aruco_dict, aruco_detector, args):
     print(f"Square: {args.square_size}cm | Marker: {args.marker_size}cm")
     print(f"Marker threshold: {min_markers}/{num_all_markers} ({args.minDetectedMarkersPercent:.0%})")
     print("[SPACE] capture | [ESC/q] finish\n")
+    capture_window = "Stereo Calibration - [SPACE] capture, [ESC] quit"
 
     while captured < args.count:
         ret, frame = cap.read()
@@ -280,12 +397,7 @@ def capture_images(cap, board, aruco_dict, aruco_detector, args):
                     (0, 255, 0) if rc is not None else (0, 255, 255), 2)
 
         combined = np.hstack([left_disp, right_disp])
-        scale = min(1.0, 1920.0 / combined.shape[1])
-        if scale < 1.0:
-            display = cv2.resize(combined, None, fx=scale, fy=scale)
-        else:
-            display = combined
-        cv2.imshow("Stereo Calibration - [SPACE] capture, [ESC] quit", display)
+        display = show_preview(capture_window, combined)
 
         key = cv2.waitKey(1) & 0xFF
         if key == 27 or key == ord('q'):
@@ -296,7 +408,7 @@ def capture_images(cap, board, aruco_dict, aruco_detector, args):
                 if not test_camera_orientation(left_gray, right_gray, aruco_dict):
                     print("  [ERROR] Camera orientation incorrect! Left/right may be swapped.")
                     print("  Please check camera mounting and restart.")
-                    cv2.destroyAllWindows()
+                    destroy_preview_windows()
                     sys.exit(1)
                 orientation_checked = True
                 print("  [OK] Camera orientation verified")
@@ -311,13 +423,12 @@ def capture_images(cap, board, aruco_dict, aruco_detector, args):
                   f"R:{r_found} markers/{r_corners} corners){note}")
             # Brief green flash
             flash = np.full_like(display, (0, 80, 0), dtype=np.uint8)
-            cv2.imshow("Stereo Calibration - [SPACE] capture, [ESC] quit",
-                       cv2.add(display, flash))
+            show_preview(capture_window, cv2.add(display, flash))
             cv2.waitKey(200)
         elif key == ord(' ') and not capture_ok:
             print(f"  [SKIP] Markers insufficient (L:{l_found} R:{r_found}, need {min_markers})")
 
-    cv2.destroyAllWindows()
+    destroy_preview_windows()
     if actual_pair_size is not None:
         print(f"Captured single-view image size: {actual_pair_size[0]}x{actual_pair_size[1]}")
     print(f"\nCapture complete: {captured} pairs saved to {dataset_dir.resolve()}/")
@@ -477,13 +588,9 @@ def show_rectification_preview(pairs, K_l, D_l, K_r, D_r, R1, R2, P1, P2, img_si
     for y in range(0, combined.shape[0], 40):
         cv2.line(combined, (0, y), (combined.shape[1], y), (0, 255, 0), 1)
 
-    scale = min(1.0, 1920.0 / combined.shape[1])
-    if scale < 1.0:
-        combined = cv2.resize(combined, None, fx=scale, fy=scale)
-
-    cv2.imshow("Rectification Preview - press any key", combined)
+    show_preview("Rectification Preview - press any key", combined)
     cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    destroy_preview_windows()
 
 
 def build_output_json(calib_result):
@@ -529,6 +636,7 @@ def build_output_json(calib_result):
 
 
 def main():
+    configure_windows_dpi_awareness()
     args = parse_args()
     sdk = UVCStereo()
     dev = None
