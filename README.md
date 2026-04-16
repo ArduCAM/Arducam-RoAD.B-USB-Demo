@@ -5,7 +5,7 @@ Demo code for reading and writing calibration data on Arducam UVC stereo cameras
 
 ## API documentation
 
-For detailed API reference and usage instructions, please refer to the [Arducam online documentation](https://docs.arducam.com/arducam-uvc-stereo).
+For detailed API reference and usage instructions, please refer to the [Arducam online documentation](https://www.arducam.com/docs/Arducam-RoAD.B-USB).
 
 ## Installation dependence
 
