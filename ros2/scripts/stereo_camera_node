@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+from arducam_uvc_stereo_ros.cpp_bootstrap import main
+
+if __name__ == "__main__":
+    raise SystemExit(main())
