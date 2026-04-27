@@ -163,7 +163,7 @@ rviz2
 
 In RViz2, click Add, then select PointCloud2.
 
-![add_pointcloud](../img/ros_rviz_1png)
+![add_pointcloud](../img/ros_rviz_1.png)
 
 Set the subscribed topic to /points2, and change Fixed Frame to the camera coordinate frame: cam0_left_optical_frame.
 
