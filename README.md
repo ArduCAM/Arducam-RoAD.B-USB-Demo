@@ -45,6 +45,7 @@ The project contains multiple demos, please try them according to the correspond
 ├── advanced/                   # Advanced Demos
 │   ├── stereo_match/           # Stereo Match Demo
 │   └── README.md
+├── ros2/                       # ROS2 Demo
 └── calib_example.json          # Example calibration data file
 ```
 
@@ -55,3 +56,4 @@ The project contains multiple demos, please try them according to the correspond
 
 ## Advanced Demos:
 - [Stereo Match Demo](advanced/stereo_match/README.md)
+- [ROS2 Demo](ros2/README.md)
