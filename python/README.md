@@ -68,3 +68,22 @@ This script reads the calibration data stored in the camera flash, opens the ste
 ```bash
 python undistort/rectify.py
 ```
+
+### imu/read_imu.py
+
+Scan for connected devices, open the IMU reader on the first device found, and read one raw IMU sample.
+
+```bash
+python imu/read_imu.py
+```
+
+Expected output:
+
+```
+device[0]: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+selected device: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+imu data:
+  temperature_raw: ...
+  accel_raw:       x=... y=... z=...
+  gyro_raw:        x=... y=... z=...
+```

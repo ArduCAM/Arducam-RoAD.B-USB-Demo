@@ -1,10 +1,6 @@
-from arducam_uvc_stereo_sdk import UVCStereo
-
-
-sdk = UVCStereo()
-
+from arducam_uvc_stereo_sdk import open_device, scan_devices
 # Scan for devices
-devices = sdk.scan()
+devices = scan_devices()
 if not devices:
     raise RuntimeError("no devices found")
 
@@ -19,10 +15,12 @@ with open("../calib_example.json", "r", encoding="utf-8") as f:
     json_text = f.read()
 
 # Write calibration data to the device
-sdk.write_json(json_text, device=dev)
+
+camera = open_device(dev)
+camera.write_json(json_text)
 print("write_json success")
 
 # Read back to verify
-version, read_json = sdk.read_json(device=dev)
+version, read_json = camera.read_json()
 print(f"read version={version}")
 print(f"read json={read_json}")

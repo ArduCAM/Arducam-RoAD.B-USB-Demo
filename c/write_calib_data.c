@@ -28,17 +28,41 @@ int main(void)
         return 2;
     }
 
-    arducam_uvc_stereo_device_info_t dev = devices[0];
+    /* Print device list */
+    for (size_t index = 0; index < count; ++index) {
+        printf("device[%zu]: vid=0x%04x pid=0x%04x node=%s bus=%u address=%u\n",
+               index,
+               (unsigned)devices[index].vid,
+               (unsigned)devices[index].pid,
+               devices[index].video_node,
+               (unsigned)devices[index].bus_number,
+               (unsigned)devices[index].device_address);
+    }
+
+    /* Select the first device */
+    arducam_uvc_stereo_device_info_t select_device = devices[0];
     arducam_uvc_stereo_free(devices);
 
     printf("selected device: vid=0x%04x pid=0x%04x node=%s bus=%u address=%u\n",
-           (unsigned)dev.vid, (unsigned)dev.pid, dev.video_node,
-           (unsigned)dev.bus_number, (unsigned)dev.device_address);
+           (unsigned)select_device.vid,
+           (unsigned)select_device.pid,
+           select_device.video_node,
+           (unsigned)select_device.bus_number,
+           (unsigned)select_device.device_address);
+
+    /* Open selected device, then read calibration data */
+    arducam_uvc_stereo_device_t *opened = NULL;
+    rc = arducam_uvc_stereo_open_device(&select_device, NULL, &opened);
+    if (rc != ARDUCAM_UVC_STEREO_OK) {
+        print_last_error("arducam_uvc_stereo_open_device", rc);
+        return 3;
+    }
 
     /* Load calibration JSON from a local file */
     FILE *fin = fopen("../../calib_example.json", "rb");
     if (!fin) {
-        fprintf(stderr, "failed to open calib_example.json\n");
+        fprintf(stderr, "failed to open json file\n");
+        arducam_uvc_stereo_close_device(opened);
         return 3;
     }
 
@@ -50,6 +74,7 @@ int main(void)
     if (!json) {
         fclose(fin);
         fprintf(stderr, "malloc failed\n");
+        arducam_uvc_stereo_close_device(opened);
         return 4;
     }
 
@@ -58,10 +83,11 @@ int main(void)
     json[n] = '\0';
 
     /* Write calibration data to the device */
-    rc = arducam_uvc_stereo_write_json(&dev, json, (size_t)n);
+    rc = arducam_uvc_stereo_device_write_json(opened, json, (size_t)n);
     free(json);
     if (rc != ARDUCAM_UVC_STEREO_OK) {
-        print_last_error("arducam_uvc_stereo_write_json", rc);
+        print_last_error("arducam_uvc_stereo_device_write_json", rc);
+        arducam_uvc_stereo_close_device(opened);
         return 5;
     }
     printf("write_json success\n");
@@ -70,14 +96,17 @@ int main(void)
     uint16_t version = 0;
     char *json_out = NULL;
     size_t json_out_len = 0;
-    rc = arducam_uvc_stereo_read_json(&dev, &version, &json_out, &json_out_len);
+    rc = arducam_uvc_stereo_device_read_json(opened, &version, &json_out, &json_out_len);
     if (rc != ARDUCAM_UVC_STEREO_OK) {
-        print_last_error("arducam_uvc_stereo_read_json", rc);
+        print_last_error("arducam_uvc_stereo_device_read_json", rc);
+        arducam_uvc_stereo_close_device(opened);
         return 6;
     }
 
-    printf("read version=%u\n", (unsigned)version);
-    printf("read json=%.*s\n", (int)json_out_len, json_out);
+    printf("Calibration version: %u\n", (unsigned)version);
+    printf("Calibration JSON:\n");
+    printf("%.*s\n", (int)json_out_len, json_out);
     arducam_uvc_stereo_free(json_out);
+    arducam_uvc_stereo_close_device(opened);
     return 0;
 }

@@ -8,7 +8,7 @@ import time
 from typing import Optional, Sequence
 
 import rclpy
-from arducam_uvc_stereo_sdk import OpenCvBackend, UVCStereo
+from arducam_uvc_stereo_sdk import OpenCvBackend, open_device, scan_devices
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
@@ -90,7 +90,6 @@ class StereoCameraNode(Node):
         self.right_info_pub = self.create_publisher(CameraInfo, "right/camera_info", self._publisher_qos)
         self._health_timer = self.create_timer(0.2, self._check_background_health)
 
-        self._sdk = UVCStereo()
         self._initialize_pipeline()
 
         self._capture_thread = threading.Thread(target=self._capture_loop, name="stereo_capture_thread", daemon=True)
@@ -110,7 +109,7 @@ class StereoCameraNode(Node):
         return super().destroy_node()
 
     def _initialize_pipeline(self) -> None:
-        devices = self._sdk.scan()
+        devices = scan_devices()
         if not devices:
             raise RuntimeError("No Arducam UVC stereo devices were found.")
 
@@ -127,7 +126,8 @@ class StereoCameraNode(Node):
         self._capture_source, self._capture_source_description = self._resolve_capture_source(self._selected_device)
         self.get_logger().info(f"Capture source: {self._capture_source_description}")
 
-        version, json_text = self._sdk.read_json(device=self._selected_device)
+        device = open_device(self._selected_device)
+        version, json_text = device.read_json()
         self._calibration_version = int(version)
         self._calibration = parse_stereo_calibration(
             json_text=json_text,

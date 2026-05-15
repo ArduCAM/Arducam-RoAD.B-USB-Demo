@@ -67,3 +67,23 @@ write_json success
 read version=0
 read json={...}
 ```
+
+### read_imu
+
+Scan for connected devices, open the IMU reader on the first device found, and read one raw IMU sample.
+
+```bash
+./build/read_imu
+```
+
+Expected output:
+
+```
+device[0]: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+selected device: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+imu data:
+  temperature_raw: ...
+  temperature_c:   ...
+  accel_raw:       x=... y=... z=...
+  gyro_raw:        x=... y=... z=...
+```

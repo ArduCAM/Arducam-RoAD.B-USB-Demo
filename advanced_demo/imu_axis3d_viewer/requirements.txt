@@ -1,0 +1,2 @@
+arducam-uvc-stereo-sdk
+pyqt6==6.9

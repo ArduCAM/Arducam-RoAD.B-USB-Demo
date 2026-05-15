@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
-from arducam_uvc_stereo_sdk import OpenCvBackend, UVCStereo
+from arducam_uvc_stereo_sdk import OpenCvBackend, open_device, scan_devices
 
 from .calibration import build_camera_info_pair, parse_stereo_calibration
 from .device_selector import SelectionError, SelectionParameters, describe_device, format_device_table, select_device
@@ -44,8 +44,7 @@ def prepare_cpp_node(args: Optional[Sequence[str]] = None) -> PreparedCppNode:
     namespace = _namespace_from_args(cli_args)
     camera_name = camera_name_from_namespace(str(cli_params.get("camera_name", "")), namespace)
 
-    sdk = UVCStereo()
-    devices = sdk.scan()
+    devices = scan_devices()
     if not devices:
         raise RuntimeError("No Arducam UVC stereo devices were found.")
 
@@ -64,7 +63,8 @@ def prepare_cpp_node(args: Optional[Sequence[str]] = None) -> PreparedCppNode:
     except SelectionError as exc:
         raise RuntimeError(f"{exc}\nDetected devices:\n{format_device_table(devices)}") from exc
 
-    version, json_text = sdk.read_json(device=selection.device)
+    device = open_device(selection.device)
+    version, json_text = device.read_json()
     capture_params = _capture_source_parameters(selection.device)
 
     translation_scale_to_meter = _required_param_float(cli_params, "translation_scale_to_meter") if "translation_scale_to_meter" in cli_params else 0.01

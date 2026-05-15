@@ -13,3 +13,6 @@ target_link_libraries(read_calib_data PRIVATE ArducamUvcStereoSdk::cpp_shared)
 
 add_executable(write_calib_data write_calib_data.cpp)
 target_link_libraries(write_calib_data PRIVATE ArducamUvcStereoSdk::cpp_shared)
+
+add_executable(read_imu read_imu.cpp)
+target_link_libraries(read_imu PRIVATE ArducamUvcStereoSdk::cpp_shared)

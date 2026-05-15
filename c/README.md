@@ -20,6 +20,7 @@ curl -s --compressed "https://arducam.github.io/arducam_ppa/KEY.gpg" | sudo apt-
 sudo curl -s --compressed -o /etc/apt/sources.list.d/arducam_list_files.list "https://arducam.github.io/arducam_ppa/arducam_list_files.list"
 sudo apt update
 sudo apt install arducam-config-parser-dev arducam-usb-sdk-dev
+```
 
 ## Build
 
@@ -65,4 +66,24 @@ selected device: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
 write_json success
 read version=0
 read json={...}
+```
+
+### read_imu
+
+Scan for connected devices, open the IMU reader on the first device found, and read one raw IMU sample.
+
+```bash
+./build/read_imu
+```
+
+Expected output:
+
+```
+device[0]: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+selected device: vid=0x... pid=0x... node=/dev/video0 bus=1 address=2
+imu data:
+  temperature_raw: ...
+  temperature_c:   ...
+  accel_raw:       x=... y=... z=...
+  gyro_raw:        x=... y=... z=...
 ```

@@ -1,14 +1,12 @@
+
 #include "arducam_uvc_stereo.hpp"
-#include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 
 int main()
 {
     using namespace arducam::uvc_stereo;
 
-    /* Scan for devices */
     Result<std::vector<DeviceInfo>> scanned = scan_devices();
     if (!scanned.ok()) {
         std::cerr << "scan failed: " << scanned.status().message() << "\n";
@@ -42,35 +40,39 @@ int main()
         return 3;
     }
     Device device = opened.move_value();
-
-    /* Load calibration JSON from a local file */
-    std::ifstream fin("../../calib_example.json");
-    if (!fin) {
-        std::cerr << "failed to open json file\n";
+    Status imu_status = device.open_imu();
+    if (!imu_status.ok()) {
+        std::cerr << "open_imu failed: " << imu_status.message() << "\n";
         return 3;
     }
 
-    std::ostringstream oss;
-    oss << fin.rdbuf();
-    std::string content = oss.str();
-
-    /* Write calibration data to the device */
-    Status st = device.write_json(content);
-    if (!st.ok()) {
-        std::cerr << "write_json failed: " << st.message() << "\n";
+    Result<ReadImuResult> raw_result = device.read_imu();
+    if (!raw_result.ok()) {
+        std::cerr << "read_imu failed: " << raw_result.status().message() << "\n";
+        device.close_imu();
         return 4;
     }
-    std::cout << "write_json success\n";
+    const ReadImuResult &raw = raw_result.value();
 
-    /* Read back to verify */
-    Result<ReadJsonResult> r = device.read_json();
-    if (!r.ok()) {
-        std::cerr << "read_json failed: " << r.status().message() << "\n";
+    Result<ConvertedImuResult> converted_result = convert_imu(raw);
+    if (!converted_result.ok()) {
+        std::cerr << "convert_imu failed: " << converted_result.status().message() << "\n";
+        device.close_imu();
         return 5;
     }
+    const ConvertedImuResult &converted = converted_result.value();
 
-    std::cout << "Calibration version: " << r.value().version << "\n";
-    std::cout << "Calibration JSON:\n";
-    std::cout << r.value().json_utf8 << "\n";
+    std::cout << "IMU data:\n"
+              << "  temperature_raw: " << raw.temperature_raw << "\n"
+              << "  temperature_c:   " << std::fixed << std::setprecision(3)
+              << converted.temperature_c << "\n"
+              << "  accel_raw:       x=" << raw.accel_x_raw
+              << " y=" << raw.accel_y_raw
+              << " z=" << raw.accel_z_raw << "\n"
+              << "  gyro_raw:        x=" << raw.gyro_x_raw
+              << " y=" << raw.gyro_y_raw
+              << " z=" << raw.gyro_z_raw << "\n";
+
+    device.close_imu();
     return 0;
 }

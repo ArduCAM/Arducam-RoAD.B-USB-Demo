@@ -178,8 +178,8 @@ class DisparityWorker(QObject):
             if key not in NON_RUNTIME_SETTINGS
         )
 
-    def _resolve_device(self, sdk):
-        entries = build_device_entries(sdk.scan())
+    def _resolve_device(self, scan_devices):
+        entries = build_device_entries(scan_devices())
         for entry in entries:
             if entry["scan_index"] != self.scan_index:
                 continue
@@ -248,14 +248,13 @@ class DisparityWorker(QObject):
         cap = None
 
         try:
-            from arducam_uvc_stereo_sdk import UVCStereo
+            from arducam_uvc_stereo_sdk import scan_devices
 
             self.status.emit("Scanning devices...")
-            sdk = UVCStereo()
-            dev = self._resolve_device(sdk)
+            dev = self._resolve_device(scan_devices)
 
             self.status.emit("Reading calibration data...")
-            calibration = read_device_calibration(sdk, dev)
+            calibration = read_device_calibration(dev)
             params = extract_stereo_params(calibration)
             rectification = compute_rectification(params)
             maps = rectification["maps"]
@@ -600,10 +599,9 @@ class DisparityMainWindow(QMainWindow):
 
     def refresh_devices(self):
         try:
-            from arducam_uvc_stereo_sdk import UVCStereo
+            from arducam_uvc_stereo_sdk import scan_devices
 
-            sdk = UVCStereo()
-            entries = build_device_entries(sdk.scan())
+            entries = build_device_entries(scan_devices())
         except Exception as exc:
             self.device_combo.clear()
             self._set_running_state(False)

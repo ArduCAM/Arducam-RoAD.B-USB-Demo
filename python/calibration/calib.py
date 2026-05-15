@@ -26,7 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from arducam_uvc_stereo_sdk import UVCStereo
+from arducam_uvc_stereo_sdk import open_device
 
 PYTHON_DIR = Path(__file__).resolve().parents[1]
 if str(PYTHON_DIR) not in sys.path:
@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument("-mdmp", "--minDetectedMarkersPercent", type=float, default=0.4,
                         help="Min percentage of detected markers to accept a frame. Default: 0.4")
     parser.add_argument("--device-index", type=int, default=None,
-                        help="Index in UVCStereo.scan() result. Default: prompt in CLI when multiple devices are detected")
+                        help="Index in scan_devices() result. Default: prompt in CLI when multiple devices are detected")
     args = parser.parse_args()
     if args.output is None:
         args.output = str(Path(args.dataset) / "calib_result.json")
@@ -638,7 +638,6 @@ def build_output_json(calib_result):
 def main():
     configure_windows_dpi_awareness()
     args = parse_args()
-    sdk = UVCStereo()
     dev = None
 
     board, aruco_dict, aruco_detector = create_charuco_board(
@@ -647,7 +646,6 @@ def main():
     # --- Capture ---
     if "capture" in args.mode:
         dev = select_device(
-            sdk,
             require_capture_source=True,
             device_index=args.device_index,
         )
@@ -687,12 +685,12 @@ def main():
 
         if dev is None:
             dev = select_device(
-                sdk,
                 require_capture_source=False,
                 device_index=args.device_index,
             )
         json_text = json.dumps(output, indent=4)
-        sdk.write_json(json_text, device=dev)
+        camera = open_device(dev)
+        camera.write_json(json_text)
         print(f"\n[OK] Calibration written to device: {format_device(dev)}")
 
 

@@ -160,11 +160,9 @@ def main():
 
     try:
         configure_windows_dpi_awareness()
-        from arducam_uvc_stereo_sdk import UVCStereo
 
-        sdk = UVCStereo()
-        dev = select_device(sdk, require_capture_source=True)
-        calibration = read_device_calibration(sdk, dev)
+        dev = select_device(require_capture_source=True)
+        calibration = read_device_calibration(dev)
         params = extract_stereo_params(calibration)
         maps = compute_maps(params)
         candidates = get_capture_candidates(dev)

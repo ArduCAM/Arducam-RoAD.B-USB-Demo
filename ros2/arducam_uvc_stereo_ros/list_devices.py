@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import sys
 
-from arducam_uvc_stereo_sdk import UVCStereo
+from arducam_uvc_stereo_sdk import scan_devices
 
 from .device_selector import format_device_table
 
 
 def main() -> int:
-    sdk = UVCStereo()
-    devices = sdk.scan()
+    devices = scan_devices()
     if not devices:
         print("No Arducam UVC stereo devices found.")
         return 1

@@ -3,6 +3,7 @@ import sys
 import time
 import cv2
 import numpy as np
+from arducam_uvc_stereo_sdk import open_device, scan_devices
 
 
 def format_device(dev):
@@ -162,8 +163,8 @@ def choose_device_via_cli(entries):
         return valid_entries[choice]
 
 
-def select_device(sdk, device_index=None, require_capture_source=False):
-    devices = sdk.scan()
+def select_device(device_index=None, require_capture_source=False):
+    devices = scan_devices()
     if not devices:
         raise RuntimeError("no devices found")
 
@@ -204,9 +205,10 @@ def select_device(sdk, device_index=None, require_capture_source=False):
     raise RuntimeError("no detected device exposes a usable capture source")
 
 
-def read_device_calibration(sdk, dev):
+def read_device_calibration(dev):
     try:
-        version, json_text = sdk.read_json(device=dev)
+        device = open_device(dev)
+        version, json_text = device.read_json()
     except Exception as exc:
         raise RuntimeError(
             f"failed to read calibration JSON from device: {exc}"
