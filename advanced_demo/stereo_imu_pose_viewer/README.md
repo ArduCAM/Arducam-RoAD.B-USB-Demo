@@ -5,7 +5,7 @@ Standalone PyQt6 demo for Arducam UVC stereo cameras. It displays the full stere
 ## Install
 
 ```bash
-python -m pip install -r stereo_imu_pose_viewer/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 The Arducam UVC stereo SDK must also be installed in the active Python environment.

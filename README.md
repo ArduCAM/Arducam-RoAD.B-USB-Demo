@@ -50,11 +50,9 @@ The project contains multiple demos, please try them according to the correspond
 │   │   └── read_imu.py         # Read IMU data from device
 │   └── README.md
 ├── advanced_demo/              # Advanced Demos
-│   ├── stereo_match/           # Stereo Match Demo
-│   ├── imu_axis3d_viewer/      # IMU 3D Axis Viewer Demo
-│   │   ├── demo.py
-│   │   ├── requirements.txt
-│   │   └── utils/
+│   ├── stereo_match            # Stereo Match Demo
+│   ├── imu_axis3d_viewer       # IMU 3D Axis Viewer Demo
+│   ├── stereo_imu_pose_viewer  # Stereo IMU Pose Viewer Demo
 │   └── README.md
 ├── ros2/                       # ROS2 Demo
 └── calib_example.json          # Example calibration data file
@@ -66,6 +64,7 @@ The project contains multiple demos, please try them according to the correspond
 - [Python Demo](python/README.md)
 
 ## Advanced Demos:
-- [Stereo Match Demo](advanced/stereo_match/README.md)
-- [IMU 3D Axis Viewer Demo](advanced/imu_axis3d_viewer/README.md)
+- [Stereo Match Demo](advanced_demo/stereo_match/README.md)
+- [IMU 3D Axis Viewer Demo](advanced_demo/imu_axis3d_viewer/README.md)
+- [Stereo IMU Pose Viewer Demo](advanced_demo/stereo_imu_pose_viewer/README.md)
 - [ROS2 Demo](ros2/README.md)
