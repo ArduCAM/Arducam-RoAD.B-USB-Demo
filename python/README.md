@@ -25,6 +25,17 @@ version=0
 json={...}
 ```
 
+### read_capability.py
+
+> [!NOTE]
+> This feature is only available on supported cameras.
+
+Scan for connected devices, open the first device found, and read its capability report. The demo displays the reported features, Flash user-space range, and IMU model, XU settings, and conversion parameters when they are supported by the device.
+
+```bash
+python read_capability.py
+```
+
 ### write_calib_data.py
 
 Write a calibration JSON file to the selected device found, then read it back to verify.

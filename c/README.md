@@ -87,3 +87,14 @@ imu data:
   accel_raw:       x=... y=... z=...
   gyro_raw:        x=... y=... z=...
 ```
+
+### read_capability
+
+> [!NOTE]
+> This feature is only available on supported cameras.
+
+Scan for connected devices, open the first device found, and read its capability report. The demo displays the reported features, Flash user-space range, and IMU model, XU settings, and conversion parameters when they are supported by the device.
+
+```bash
+./build/read_capability
+```
