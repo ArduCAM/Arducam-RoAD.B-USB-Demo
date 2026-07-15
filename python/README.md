@@ -44,7 +44,7 @@ read version=0
 read json={...}
 ```
 
-### calibration/calib.py
+### calibration/stereo_calib.py
 
 Stereo calibration tool for Arducam UVC Stereo cameras.
 
@@ -56,6 +56,18 @@ This script is used to capture stereo calibration image pairs, run ChArUco-based
 python calibration/calib.py
 
 ```
+
+### calibration/mono_calib.py
+
+Mono calibration tool for one UVC camera.
+
+This script follows the same capture, process, save, and SDK write flow as the stereo calibration tool. It saves captured images under `<dataset>/images`, writes a flat mono calibration JSON with `width`, `height`, `intrinsicMatrix`, `dist_coeff`, and `reprojection_error`, and stores that JSON on the selected device with `write_json`.
+
+```bash
+python calibration/mono_calib.py
+
+```
+
 ### undistort/rectify.py
 
 Simple rectification demo for Arducam UVC Stereo cameras.
