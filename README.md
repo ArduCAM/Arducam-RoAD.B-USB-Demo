@@ -25,37 +25,41 @@ The project contains multiple demos, please try them according to the correspond
 
 > **Note:** These demos require Arducam UVC Stereo SDK version **> 0.2**.
 
-```.
-├── c/                          # C Demo
-│   ├── build.sh                # Build script
+```
+.
+├── c/                                   # C demos
 │   ├── CMakeLists.txt
-│   ├── read_calib_data.c       # Read calibration data from device
-│   ├── write_calib_data.c      # Write calibration data to device
-│   ├── read_imu.c              # Read IMU data from device
-│   └── README.md
-├── c++/                        # C++ Demo
-│   ├── build.sh                # Build script
+│   ├── build.sh
+│   ├── read_calib_data.c                # Read calibration data
+│   ├── write_calib_data.c               # Write calibration data
+│   ├── read_capability.c                # Read device capabilities
+│   └── read_imu.c                       # Read IMU data
+│
+├── c++/                                 # C++ demos
 │   ├── CMakeLists.txt
-│   ├── read_calib_data.cpp     # Read calibration data from device
-│   ├── write_calib_data.cpp    # Write calibration data to device
-│   ├── read_imu.cpp            # Read IMU data from device
-│   └── README.md
-├── python/                     # Python Demo
-│   ├── requirements.txt        # Python dependencies
-│   ├── read_calib_data.py      # Read calibration data from device
-│   ├── write_calib_data.py     # Write calibration data to device
-│   ├── calibration/            # Stereo calibration tool
-│   ├── undistort/              # Rectification demo
-│   ├── imu/                    # IMU demo
-│   │   └── read_imu.py         # Read IMU data from device
-│   └── README.md
-├── advanced_demo/              # Advanced Demos
-│   ├── stereo_match            # Stereo Match Demo
-│   ├── imu_axis3d_viewer       # IMU 3D Axis Viewer Demo
-│   ├── stereo_imu_pose_viewer  # Stereo IMU Pose Viewer Demo
-│   └── README.md
-├── ros2/                       # ROS2 Demo
-└── calib_example.json          # Example calibration data file
+│   ├── build.sh
+│   ├── read_calib_data.cpp              # Read calibration data
+│   ├── write_calib_data.cpp             # Write calibration data
+│   ├── read_capability.cpp              # Read device capabilities
+│   └── read_imu.cpp                     # Read IMU data
+│
+├── python/                              # Python demos
+│   ├── calibration/                     # Mono and stereo calibration tools
+│   │   ├── mono_calib.py
+│   │   └── stereo_calib.py
+│   ├── imu/
+│   │   └── read_imu.py                  # Read IMU data
+│   ├── undistort                        # Image rectification demo
+│   ├── read_calib_data.py               # Read calibration data
+│   ├── write_calib_data.py              # Write calibration data
+│   └── read_capability.py               # Read device capabilities
+│
+├── advanced_demo/                       # Advanced demos
+│   ├── stereo_matc                      # Stereo matching demo
+│   ├── imu_axis3d_viewer                # IMU 3D-axis viewer
+│   └── stereo_imu_pose_viewer           # Stereo-IMU pose viewer
+│
+└── ros2/                                # ROS 2 Stereo Demo 
 ```
 
 ## Basic Demos:
