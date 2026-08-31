@@ -138,6 +138,7 @@ def destroy_preview_windows():
 def preview_loop(cap, maps, img_size):
     map_l1, map_l2, map_r1, map_r2 = maps
     window_name = "Live Rectified Stereo - [q]/[Esc] quit"
+    show_rectified = True
 
     while True:
         ret, frame = cap.read()
@@ -149,8 +150,11 @@ def preview_loop(cap, maps, img_size):
         right_rect = cv2.remap(right, map_r1, map_r2, cv2.INTER_LINEAR)
 
         combined = np.hstack([left_rect, right_rect])
-        show_preview(window_name, combined)
+        display = combined if show_rectified else frame
+        show_preview(window_name, display)
         key = cv2.waitKey(1) & 0xFF
+        if key == ord("s"):
+            show_rectified = not show_rectified
         if key in (27, ord("q")):
             break
 
