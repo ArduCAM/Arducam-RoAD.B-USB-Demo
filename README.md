@@ -1,7 +1,15 @@
 # Arducam RoAD.B-USB Demo
 
-Demo code for reading and writing calibration data on Arducam UVC stereo cameras, available in C, C++, and Python.
+Demo code for Arducam UVC cameras, available in C, C++, and Python.
 
+# Support Cameras
+- B0643
+- BO645
+- B0678
+- BO705
+- BO706
+- CU876-001
+- CU876-002
 
 ## API documentation
 
@@ -15,8 +23,10 @@ Please refer to the [Linux installation](doc/linux_environmental_install.md).
 ## Quick Start
 To run the demo in the fastest and simplest way, it is recommended to use the [Python demo](./python/README.md) (please set [udev rules](./doc/linux_environmental_install.md###set-udev-rules) and [Python dependencies](./python/README.md###installation-dependence) before trying it).
 
-## Notes
-- After reading or writing the calibration file, starting the camera stream may fail. Please add a short delay before starting streaming again.
+> [!NOTE]
+> - After reading or writing the calibration file, starting the camera stream may fail. Please add a short delay before starting streaming again.
+> - **B0643, B0645**: **Not supported** (no onboard IMU hardware).
+> - **B0678**, **B0705**, and **B0706** cameras, IMU data can only be read while the camera stream is active (streaming state).
 
 
 
