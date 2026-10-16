@@ -4,10 +4,10 @@ Demo code for Arducam UVC cameras, available in C, C++, and Python.
 
 # Support Cameras
 - B0643
-- BO645
+- B0645
 - B0678
-- BO705
-- BO706
+- B0705
+- B0706
 - CU876-001
 - CU876-002
 
